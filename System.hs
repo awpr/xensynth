@@ -20,6 +20,8 @@ import           Sound.File.Sndfile
     , writeFile
     )
 
+-- TODO ideas:
+
 type Pitch = Rational
 
 data System = System
@@ -39,7 +41,7 @@ bohlenPierce :: System
 bohlenPierce = System
     { fund_ = 440
     , cycle_ = 3
-    , scale_ = [1, 25%21, 9%7, 5%3, 9%5, 15%7, 7%3, 25%9]
+    , scale_ = [1, 27%25, 25%21, 9%7, 7%5, 75%49, 5%3, 9%5, 49%25, 15%7, 7%3, 63%25, 25%9]
     }
 
 type Note = (Int, Tone)
@@ -63,10 +65,16 @@ melodicMinor p = Composition
         , 12, 10, 8, 7, 5, 3, 2, 0, 0]
     }
 
+bpChromatic :: Composition
+bpChromatic = Composition
+    { system_ = bohlenPierce
+    , notes_  = map (,oddHarmonics) $ [-13..0] ++ [0,-1.. -13]
+    }
+
 lambda :: Composition
 lambda = Composition
     { system_ = bohlenPierce
-    , notes_  = map (,harmonic) $ enumFromTo (-8) 8
+    , notes_  = map (,oddHarmonics) $ [-13, -11, -10, -9, -7, -6, -4, -3, -1, 0]
     }
 
 type Spectrum = [(Pitch, Double)]
@@ -80,8 +88,14 @@ synthesizeSpectrum =
 octaved :: Tone
 octaved p = [(p, 0.5), (2*p, 0.2)]
 
+tritaved :: Tone
+tritaved p = [(p, 0.5), (3*p, 0.2)]
+
 harmonic :: Tone
 harmonic p = map (second (/2)) [(p, 0.5), (2*p, 0.2), (3*p, 0.1), (4*p, 0.05), (5*p, 0.025)]
+
+oddHarmonics :: Tone
+oddHarmonics p = [(p, 0.5), (2*p, 0.05), (3*p, 0.2), (4*p, 0.04), (5*p, 0.1), (7*p, 0.05)]
 
 fifthed :: Tone
 fifthed p = [(p, 0.3), (p * (3%2), 0.3), (p * 2, 0.15)]
@@ -144,10 +158,13 @@ simpleWavInfo = Info
     , seekable = True
     }
 
-main :: IO ()
-main = do
-    n <- writeFile simpleWavInfo "/tmp/blah.wav" . toBuffer . synthesize 44100 . interp $ lambda
-    print n
+generateWav :: (FilePath, Composition) -> IO ()
+generateWav (path, comp) = do
+    n <- writeFile simpleWavInfo path $ toBuffer $ synthesize 44100 $ interp comp
+    putStrLn $ path ++ ": " ++ show n ++ " samples"
 
-    m <- writeFile simpleWavInfo "/tmp/tone.wav" . toBuffer . synthesizeFragment 44100 . (,44100) . scaleWaveform 0.5 . synthesizeSpectrum . harmonic $ 440
-    print m
+main :: IO ()
+main = mapM_ generateWav
+    [ ("/tmp/chromatic.wav", bpChromatic)
+    , ("/tmp/lambda.wav",    lambda)
+    ]
