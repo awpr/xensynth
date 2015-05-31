@@ -57,7 +57,6 @@ interp (Composition _ []    ) = []
 interp (Composition s (x:xs)) = pitch s x : interp (Composition s xs)
 
 type Sample = Int16
-type Frame = Vector Sample
 
 type SampleRate = Integer -- Hz
 
@@ -67,9 +66,12 @@ quantize :: forall a b. (Real a, Bounded b, Integral b) => a -> b
 quantize x = floor $ toRational x * toRational scale / 2
     where scale = fromIntegral (maxBound :: b) - fromIntegral (minBound :: b)
 
-pitchFrame :: SampleRate -> Int -> Pitch -> Frame
-pitchFrame rate n p = V.generate n $
+synthesizeNote :: SampleRate -> Int -> Pitch -> Vector Sample
+synthesizeNote rate n p = V.generate n $
     quantize . sin . (2 * pi * fromRational p *) . fromRational . (% rate) . fromIntegral
+
+synthesize :: SampleRate -> Int -> Sequencing -> Vector Sample
+synthesize rate n ps = V.concat $ map (synthesizeNote rate n) ps
 
 simpleWavInfo :: Info
 simpleWavInfo = Info
@@ -86,5 +88,6 @@ simpleWavInfo = Info
     }
 
 main :: IO ()
-main = print =<<
-    writeFile simpleWavInfo "/tmp/blah.wav" (toBuffer (pitchFrame 44100 44100 440))
+main = do
+    n <- writeFile simpleWavInfo "/tmp/blah.wav" . toBuffer . synthesize 44100 22050 . interp $ ionian
+    print n
