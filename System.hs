@@ -46,7 +46,7 @@ ionian = Composition
     , notes_  = [0, 2, 4, 5, 7, 9, 11, 12]
     }
 
-type Sequencing = [Pitch]
+type Sequencing = [Fragment]
 
 pitch :: System -> Int -> Pitch
 pitch (System f c s) n = f * (c ^ fromIntegral octave) * (s !! step)
@@ -54,7 +54,7 @@ pitch (System f c s) n = f * (c ^ fromIntegral octave) * (s !! step)
 
 interp :: Composition -> Sequencing
 interp (Composition _ []    ) = []
-interp (Composition s (x:xs)) = pitch s x : interp (Composition s xs)
+interp (Composition s (x:xs)) = Fragment (pitch s x) 0.1 22050 : interp (Composition s xs)
 
 type Sample = Int16
 
@@ -83,7 +83,7 @@ synthesizeFragment rate frag = V.generate (duration_ frag) $
     quantize . (fromRational (amp_ frag) *) . samplePitchAt rate (pitch_ frag)
 
 synthesize :: SampleRate -> Sequencing -> Vector Sample
-synthesize rate ps = V.concat $ map (synthesizeFragment rate . (\p -> Fragment p 0.1 22050)) ps
+synthesize rate ps = V.concat $ map (synthesizeFragment rate) ps
 
 simpleWavInfo :: Info
 simpleWavInfo = Info
