@@ -1,11 +1,22 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module System where
 
+import Prelude hiding (writeFile)
+
 import           Data.Ratio (Ratio, (%))
 import           Data.Int (Int16)
 
-import           Data.Vector.Unboxed (Vector)
-import qualified Data.Vector.Unboxed as V
+import           Data.Vector.Storable (Vector)
+import qualified Data.Vector.Storable as V
+import           Sound.File.Sndfile.Buffer.Vector (toBuffer)
+import           Sound.File.Sndfile
+    ( Format(..)
+    , Info(..)
+    , HeaderFormat(HeaderFormatWav)
+    , SampleFormat(SampleFormatPcm16)
+    , EndianFormat(EndianFile)
+    , writeFile
+    )
 
 type Pitch = Rational
 
@@ -60,5 +71,20 @@ pitchFrame :: SampleRate -> Int -> Pitch -> Frame
 pitchFrame rate n p = V.generate n $
     quantize . sin . (2 * pi * fromRational p *) . fromRational . (% rate) . fromIntegral
 
+simpleWavInfo :: Info
+simpleWavInfo = Info
+    { frames = 44100
+    , samplerate = 44100
+    , channels = 1
+    , format = Format
+        { headerFormat = HeaderFormatWav
+        , sampleFormat = SampleFormatPcm16
+        , endianFormat = EndianFile
+        }
+    , sections = 1
+    , seekable = True
+    }
+
 main :: IO ()
-main = print $ interp ionian
+main = print =<<
+    writeFile simpleWavInfo "/tmp/blah.wav" (toBuffer (pitchFrame 44100 44100 440))
