@@ -21,6 +21,10 @@ import           Sound.File.Sndfile
     )
 
 -- TODO ideas:
+-- - deal with harsh note onsets (window function?)
+-- - note profiles: crescendo, accent, tremolo?
+-- - pitch profiles: vibrato, bends?
+-- - polyphonic compositions
 
 type Pitch = Rational
 
@@ -51,30 +55,32 @@ data Composition = Composition
     , notes_  :: [Note]
     }
 
+scale :: [a] -> [a]
+scale []     = []
+scale (x:xs) = x:x:xs ++ reverse (x:x:xs)
+
 ionian :: Pitch -> Composition
 ionian p = Composition
     { system_ = pythagorean p
-    , notes_  = map (,fifthed) [0, 2, 4, 5, 7, 9, 11, 12]
+    , notes_  = map (,harmonic) $ scale [0, 2, 4, 5, 7, 9, 11, 12]
     }
 
 melodicMinor :: Pitch -> Composition
 melodicMinor p = Composition
     { system_ = pythagorean p
-    , notes_  = map (,harmonic)
-        [ 0, 0, 2, 3, 5, 7, 9, 11, 12
-        , 12, 10, 8, 7, 5, 3, 2, 0, 0]
+    , notes_  = map (,harmonic) $ scale [0, 2, 3, 5, 7, 9, 11, 12]
     }
 
 bpChromatic :: Composition
 bpChromatic = Composition
     { system_ = bohlenPierce
-    , notes_  = map (,oddHarmonics) $ [-13..0] ++ [0,-1.. -13]
+    , notes_  = map (,oddHarmonics) $ scale [-13..0]
     }
 
 lambda :: Composition
 lambda = Composition
     { system_ = bohlenPierce
-    , notes_  = map (,oddHarmonics) $ [-13, -11, -10, -9, -7, -6, -4, -3, -1, 0]
+    , notes_  = map (,oddHarmonics) $ scale [-13, -11, -10, -9, -7, -6, -4, -3, -1, 0]
     }
 
 type Spectrum = [(Pitch, Double)]
@@ -165,6 +171,8 @@ generateWav (path, comp) = do
 
 main :: IO ()
 main = mapM_ generateWav
-    [ ("/tmp/chromatic.wav", bpChromatic)
-    , ("/tmp/lambda.wav",    lambda)
+    [ ("/tmp/chromatic.wav",     bpChromatic)
+    , ("/tmp/lambda.wav",        lambda)
+    , ("/tmp/ionian.wav",        ionian 220)
+    , ("/tmp/melodic_minor.wav", melodicMinor 220)
     ]
