@@ -64,14 +64,26 @@ type SampleRate = Integer -- Hz
 -- target type.
 quantize :: forall a b. (Real a, Bounded b, Integral b) => a -> b
 quantize x = floor $ toRational x * toRational scale / 2
-    where scale = fromIntegral (maxBound :: b) - fromIntegral (minBound :: b)
+    where
+        scale :: Integer
+        scale = fromIntegral (maxBound :: b) - fromIntegral (minBound :: b)
 
-synthesizeNote :: SampleRate -> Int -> Pitch -> Vector Sample
-synthesizeNote rate n p = V.generate n $
-    quantize . sin . (2 * pi * fromRational p *) . fromRational . (% rate) . fromIntegral
+data Fragment = Fragment
+    { pitch_    :: Pitch
+    , amp_      :: Rational
+    , duration_ :: Int
+    }
 
-synthesize :: SampleRate -> Int -> Sequencing -> Vector Sample
-synthesize rate n ps = V.concat $ map (synthesizeNote rate n) ps
+samplePitchAt :: SampleRate -> Pitch -> Int -> Double
+samplePitchAt rate p =
+    sin . (2 * pi * fromRational p *) . fromRational . (% rate) . fromIntegral
+
+synthesizeFragment :: SampleRate -> Fragment -> Vector Sample
+synthesizeFragment rate frag = V.generate (duration_ frag) $
+    quantize . (fromRational (amp_ frag) *) . samplePitchAt rate (pitch_ frag)
+
+synthesize :: SampleRate -> Sequencing -> Vector Sample
+synthesize rate ps = V.concat $ map (synthesizeFragment rate . (\p -> Fragment p 0.1 22050)) ps
 
 simpleWavInfo :: Info
 simpleWavInfo = Info
@@ -89,5 +101,5 @@ simpleWavInfo = Info
 
 main :: IO ()
 main = do
-    n <- writeFile simpleWavInfo "/tmp/blah.wav" . toBuffer . synthesize 44100 22050 . interp $ ionian
+    n <- writeFile simpleWavInfo "/tmp/blah.wav" . toBuffer . synthesize 44100 . interp $ ionian
     print n
