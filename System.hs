@@ -35,6 +35,13 @@ pythagorean p = System
     , scale_ = [1, 256%243, 9%8, 32%27, 81%64, 4%3, 729%512, 3%2, 128%81, 27%16, 16%9, 243%128]
     }
 
+bohlenPierce :: System
+bohlenPierce = System
+    { fund_ = 440
+    , cycle_ = 3
+    , scale_ = [1, 25%21, 9%7, 5%3, 9%5, 15%7, 7%3, 25%9]
+    }
+
 type Note = (Int, Tone)
 
 data Composition = Composition
@@ -56,6 +63,12 @@ melodicMinor p = Composition
         , 12, 10, 8, 7, 5, 3, 2, 0, 0]
     }
 
+lambda :: Composition
+lambda = Composition
+    { system_ = bohlenPierce
+    , notes_  = map (,harmonic) $ enumFromTo (-8) 8
+    }
+
 type Spectrum = [(Pitch, Double)]
 type Tone = Pitch -> Spectrum
 
@@ -73,12 +86,15 @@ harmonic p = map (second (/2)) [(p, 0.5), (2*p, 0.2), (3*p, 0.1), (4*p, 0.05), (
 fifthed :: Tone
 fifthed p = [(p, 0.3), (p * (3%2), 0.3), (p * 2, 0.15)]
 
+tritoned :: Tone
+tritoned p = [(p, 0.5), (p * (729%512), 0.2)]
+
 type Waveform = Rational -> Double
 
 type Sequencing = [(Waveform, Int)]
 
 pitch :: System -> Int -> Pitch
-pitch (System f c s) n = f * (c ^ fromIntegral octave) * (s !! step)
+pitch (System f c s) n = f * (c ^^ fromIntegral octave) * (s !! step)
     where (octave, step) = n `divMod` length s
 
 pitchWaveform :: Pitch -> Rational -> Double
@@ -130,7 +146,7 @@ simpleWavInfo = Info
 
 main :: IO ()
 main = do
-    n <- writeFile simpleWavInfo "/tmp/blah.wav" . toBuffer . synthesize 44100 . interp $ melodicMinor 220
+    n <- writeFile simpleWavInfo "/tmp/blah.wav" . toBuffer . synthesize 44100 . interp $ lambda
     print n
 
     m <- writeFile simpleWavInfo "/tmp/tone.wav" . toBuffer . synthesizeFragment 44100 . (,44100) . scaleWaveform 0.5 . synthesizeSpectrum . harmonic $ 440
